@@ -1,9 +1,13 @@
 ---
-title: "DiverseCohorts_AnalyticsWG"
+title: "DiverseCohorts"
 author: "Jared Hendrickson"
-date: "2023-03-10"
+date: "2023-02-27"
 output: html_document
+params:
+  synapseusername: "***"
+  synapsepassword: "***"
 ---
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -12,12 +16,13 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 
 library(synapser)
-
-synLogin()
 library(tidyverse)
 
+synLogin(params$synapseusername, params$synapsepassword)
+
 ```
-```{r}
+
+```{r eval=FALSE, include=FALSE}
 
 query = synTableQuery("SELECT * FROM syn51188856")
 data <- read.csv(query$filepath) %>%
@@ -41,7 +46,7 @@ write.csv(samplesheet, "MayoRNAseqTenRandomSamplesBams.csv", row.names = FALSE)
 
 ```
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 
 query = synTableQuery("SELECT * FROM syn51188856")
 data <- read.csv(query$filepath) %>%
@@ -69,4 +74,71 @@ samplesheet = samplesheet %>%
 write.csv(samplesheet, "MayoRNAseqTenRandomSamplesFastqs.csv", row.names = FALSE)
 
 ```
+```{r eval=FALSE, include=FALSE}
 
+query = synTableQuery("SELECT * FROM syn51188856")
+data <- read.csv(query$filepath) %>%
+  filter(study == "MayoRNAseq") %>%
+  select(id, specimenID, name) %>%
+  filter(!str_detect(name, "bam.bai"))
+
+set.seed(33)
+
+specimenIDsTenRandom <- sample(data$specimenID %>%
+  unique(), 10)
+
+samplesheet <- data %>%
+  filter(specimenID %in% specimenIDsTenRandom) %>%
+  select(specimenID, name)
+
+path <- "s3://jared-hendrickson-project-tower-bucket/DiverseCohorts_AnalyticsWG/Test/fastq/reads/"
+
+samplesheet = samplesheet %>%
+  mutate(fastq_1 = sapply(name, function(x) paste0(path, str_replace_all(x, ".bam", ".1.fq.gz"))), fastq_2 = sapply(name, function(x) paste0(path, str_replace_all(x, ".bam", ".2.fq.gz"))), strandedness = "reverse") %>%
+  rename(sample = specimenID) %>%
+  select(-name)
+
+
+write.csv(samplesheet, "MayoRNAseqTenRandomSamplesFastqsReverseStranded.csv", row.names = FALSE)
+
+```
+
+```{r all samples from Mayo samplesheet, eval=FALSE, include=FALSE}
+
+query = synTableQuery("SELECT * FROM syn51188856")
+data <- read.csv(query$filepath) %>%
+  filter(study == "MayoRNAseq") %>%
+  select(id, specimenID, name) %>%
+  filter(!str_detect(name, "bam.bai"))
+
+samplesheet <- data %>%
+  select(specimenID, id) %>%
+  rename(sample = specimenID) %>%
+  mutate(synLocation = sapply(id, function(x) paste0("syn://", x))) %>%
+  select(-id)
+
+write.csv(samplesheet, "MayoRNAseqAllSamplesBams.csv", row.names = FALSE)
+
+```
+```{r}
+
+query = synTableQuery("SELECT * FROM syn51188856")
+data <- read.csv(query$filepath) %>%
+  filter(study == "MayoRNAseq") %>%
+  select(id, specimenID, name) %>%
+  filter(!str_detect(name, "bam.bai"))
+
+samplesheet <- data %>%
+  select(specimenID, name)
+
+path <- "s3://jared-hendrickson-project-tower-bucket/DiverseCohorts_AnalyticsWG/AllMayo/fastqsOut/"
+
+samplesheet = samplesheet %>%
+  mutate(fastq_1 = sapply(name, function(x) paste0(path, str_replace_all(x, ".bam", ".1.fq.gz"))), fastq_2 = sapply(name, function(x) paste0(path, str_replace_all(x, ".bam", ".2.fq.gz"))), strandedness = "auto") %>%
+  rename(sample = specimenID) %>%
+  select(-name)
+
+
+write.csv(samplesheet, "MayoRNAseqAllFastqs.csv", row.names = FALSE)
+
+```
