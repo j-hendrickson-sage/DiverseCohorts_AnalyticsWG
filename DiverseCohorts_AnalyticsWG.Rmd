@@ -1,0 +1,72 @@
+---
+title: "DiverseCohorts_AnalyticsWG"
+author: "Jared Hendrickson"
+date: "2023-03-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+library(synapser)
+
+synLogin()
+library(tidyverse)
+
+```
+```{r}
+
+query = synTableQuery("SELECT * FROM syn51188856")
+data <- read.csv(query$filepath) %>%
+  filter(study == "MayoRNAseq") %>%
+  select(id, specimenID, name) %>%
+  filter(!str_detect(name, "bam.bai"))
+
+set.seed(33)
+
+specimenIDsTenRandom <- sample(data$specimenID %>%
+  unique(), 10)
+
+samplesheet <- data %>%
+  filter(specimenID %in% specimenIDsTenRandom) %>%
+  select(specimenID, id) %>%
+  rename(sample = specimenID) %>%
+  mutate(synLocation = sapply(id, function(x) paste0("syn://", x))) %>%
+  select(-id)
+
+write.csv(samplesheet, "MayoRNAseqTenRandomSamplesBams.csv", row.names = FALSE)
+
+```
+
+```{r}
+
+query = synTableQuery("SELECT * FROM syn51188856")
+data <- read.csv(query$filepath) %>%
+  filter(study == "MayoRNAseq") %>%
+  select(id, specimenID, name) %>%
+  filter(!str_detect(name, "bam.bai"))
+
+set.seed(33)
+
+specimenIDsTenRandom <- sample(data$specimenID %>%
+  unique(), 10)
+
+samplesheet <- data %>%
+  filter(specimenID %in% specimenIDsTenRandom) %>%
+  select(specimenID, name)
+
+path <- "s3://jared-hendrickson-project-tower-bucket/DiverseCohorts_AnalyticsWG/Test/fastq/reads/"
+
+samplesheet = samplesheet %>%
+  mutate(fastq_1 = sapply(name, function(x) paste0(path, str_replace_all(x, ".bam", ".1.fq.gz"))), fastq_2 = sapply(name, function(x) paste0(path, str_replace_all(x, ".bam", ".2.fq.gz"))), strandedness = "auto") %>%
+  rename(sample = specimenID) %>%
+  select(-name)
+
+
+write.csv(samplesheet, "MayoRNAseqTenRandomSamplesFastqs.csv", row.names = FALSE)
+
+```
+
